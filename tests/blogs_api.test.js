@@ -9,13 +9,20 @@ const bcrypt = require('bcrypt')
 
 beforeEach(async () => {
     await Blog.deleteMany({})
-    console.log('cleared')
   
     for (let blog of helper.initialBlogs) {
         let blogObject = new Blog(blog)
         await blogObject.save()
       }
-    console.log('done')
+
+    await User.deleteMany({})
+    let testuser = new User({
+      username: 'testuser',
+      name: 'testuser',
+      password: 'password'
+    })
+    await testuser.save()
+    
   })
 
 
@@ -32,35 +39,40 @@ test('blogs are identified by id', async () => {
     expect(response).toBeDefined(response.id)
   })
 
-test('blog can be added',async ()=>{
-    const newBlog = ({
-      title: "Update",
-      author: "Robert C. Martin",
-      url: "http://blog.cleancoder.com/uncle-bob/2016/05/08/Update.html",
-      likes: 2
-    })
-
-    await api.post('/api/blogs')
-            .send(newBlog)
-            .expect(201)
-            .expect('Content-Type',/application\/json/)
-    
-    const currBlogs = await helper.blogsIndb()
-    expect(currBlogs).toHaveLength(helper.initialBlogs.length + 1)
-    
-    const ids = await currBlogs.map(blog=>blog.ids)
-    expect(ids).toContain(newBlog.id)
-
-})
-
-test('likes are defaulted to 0', async()=>{
-    const newBlog = ({
+describe('tests for adding a new blog', ()=> {
+  test('blog can be added',async ()=>{
+      const token = await helper.getToken()
+      const newBlog = ({
         title: "Update",
         author: "Robert C. Martin",
-        url: "http://blog.cleancoder.com/uncle-bob/2016/05/08/Update.html"
+        url: "http://blog.cleancoder.com/uncle-bob/2016/05/08/Update.html",
+        likes: 2
       })
-  
+
       await api.post('/api/blogs')
+              .set('Authorization', token)
+              .send(newBlog)
+              .expect(201)
+              .expect('Content-Type',/application\/json/)
+      
+      const currBlogs = await helper.blogsIndb()
+      expect(currBlogs).toHaveLength(helper.initialBlogs.length + 1)
+      
+      const ids = await currBlogs.map(blog=>blog.ids)
+      expect(ids).toContain(newBlog.id)
+
+  })
+
+  test('likes are defaulted to 0', async()=>{
+      const token = await helper.getToken()
+      const newBlog = ({
+          title: "Update",
+          author: "Robert C. Martin",
+          url: "http://blog.cleancoder.com/uncle-bob/2016/05/08/Update.html"
+        })
+    
+      await api.post('/api/blogs')
+              .set('Authorization', token)
               .send(newBlog)
               .expect(201)
               .expect('Content-Type',/application\/json/)
@@ -70,33 +82,56 @@ test('likes are defaulted to 0', async()=>{
       expect(currBlogs).toBeDefined(currBlogs.likes)
       expect(currBlogs[currBlogs.length-1].likes).toEqual(0)
       
-})
+  })
 
-test('blogs need a title', async()=>{
+  test('blogs need a title', async()=>{
+    const token = await helper.getToken()
     const newBlog = ({
         author: "Robert C. Martin",
         url: "http://blog.cleancoder.com/uncle-bob/2016/05/08/Update.html"
       })
   
     await api.post('/api/blogs')
+        .set('Authorization', token)
         .send(newBlog)
         .expect(400)
     const currBlogs = await helper.blogsIndb()
     expect(currBlogs).toHaveLength(helper.initialBlogs.length )
-})
+  })
 
-test('blogs need a url', async()=>{
+  test('blogs need a url', async()=>{
+    const token = await helper.getToken()
     const newBlog = ({
         title: "Update",
         author: "Robert C. Martin",
       })
   
     await api.post('/api/blogs')
+        .set('Authorization', token)
         .send(newBlog)
         .expect(400)
 
     const currBlogs = await helper.blogsIndb()
     expect(currBlogs).toHaveLength(helper.initialBlogs.length )
+  })
+
+  test('auth token is needed to add a new blog', async () => {
+      const newBlog = ({
+        title: "Update",
+        author: "Robert C. Martin",
+        url: "http://blog.cleancoder.com/uncle-bob/2016/05/08/Update.html",
+        likes: 2
+      })
+
+      await api.post('/api/blogs')
+              .send(newBlog)
+              .expect(401)
+              .expect('Content-Type',/application\/json/)
+      
+      const currBlogs = await helper.blogsIndb()
+      expect(currBlogs).toHaveLength(helper.initialBlogs.length)
+    
+  })
 })
 
 test ('blogs can be deleted',async()=>{

@@ -1,5 +1,6 @@
 const Blog = require('../models/blog')
 const User = require('../models/user')
+const jwt = require('jsonwebtoken')
 const initialBlogs = [
     {
       _id: "5a422a851b54a676234d17f7",
@@ -60,7 +61,17 @@ const initialBlogs = [
     const users = await User.find({})
     return users.map(user => user.toJSON()) 
   }
+
+  const getToken = async()=>{
+    const user = await User.findOne({})
+    const userForToken = {
+        username: user.username,
+        id: user._id,
+      }
+    const token = 'bearer ' + jwt.sign(userForToken, process.env.SECRET)
+    return token
+  }
   
   module.exports = {
-    initialBlogs,blogsIndb,usersIndb
+    initialBlogs,blogsIndb,usersIndb,getToken
   }
